@@ -2,6 +2,8 @@ package com.example.cineapp.network;
 
 import com.example.cineapp.models.CreditsResponse;
 import com.example.cineapp.models.MovieResponse; // La crearemos en el siguiente paso
+import com.example.cineapp.models.VideoResponse;
+
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
@@ -23,5 +25,11 @@ public interface TmdbApi {
             @Query("api_key") String apiKey,
             @Query("query") String query,      // Aquí irá lo que el usuario escriba
             @Query("language") String language
+    );
+    @GET("movie/{movie_id}/videos")
+    Call<VideoResponse> getMovieVideos(
+
+            @Path("movie_id") int movieId,
+            @Query("api_key") String apiKey
     );
 }

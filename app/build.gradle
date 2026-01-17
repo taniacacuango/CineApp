@@ -63,6 +63,10 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:34.8.0')
     implementation 'com.google.firebase:firebase-analytics'
 
+    // Reproductor de YouTube
+    implementation 'com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.0'
+
+    implementation("com.google.android.material:material:1.9.0")
     // Add the dependencies for any other desired Firebase products
     // https://firebase.google.com/docs/android/setup#available-libraries
 }

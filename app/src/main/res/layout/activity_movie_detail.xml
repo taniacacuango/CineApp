@@ -31,14 +31,11 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp"/>
 
-            <TextView
-                android:layout_width="wrap_content"
+            <com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+                android:id="@+id/youtube_player_view"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Sinopsis"
-                android:textColor="#E50914"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="4dp"/>
+                android:layout_marginTop="10dp"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -52,6 +49,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:text="Sinopsis"
+                android:textColor="#E50914"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
             <TextView
                 android:id="@+id/tvDetailOverview"
                 android:layout_width="match_parent"
@@ -59,6 +66,7 @@
                 android:textColor="#CCCCCC"
                 android:textSize="16sp"
                 android:lineSpacingExtra="4dp"/>
+
 
         </LinearLayout>
     </LinearLayout>
