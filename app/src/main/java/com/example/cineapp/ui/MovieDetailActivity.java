@@ -15,10 +15,15 @@ import com.example.cineapp.R;
 import com.example.cineapp.adapters.CastAdapter;
 import com.example.cineapp.models.Cast;
 import com.example.cineapp.models.CreditsResponse;
+import com.example.cineapp.models.Movie;
 import com.example.cineapp.models.Video;
 import com.example.cineapp.models.VideoResponse;
 import com.example.cineapp.network.RetrofitClient;
 import com.example.cineapp.network.TmdbApi;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseReference; // FALTABA ESTO
+import com.google.firebase.database.FirebaseDatabase; // FALTABA ESTO
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer;
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener;
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView;
@@ -34,8 +39,10 @@ public class MovieDetailActivity extends AppCompatActivity {
     private TextView tvTitle, tvOverview;
     private RecyclerView rvCast;
     private CastAdapter castAdapter;
-    // IMPORTANTE: Fíjate que aquí la T es mayúscula
     private YouTubePlayerView youTubePlayerView;
+
+    private DatabaseReference mDatabase;
+    private String userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,12 +53,11 @@ public class MovieDetailActivity extends AppCompatActivity {
         tvTitle = findViewById(R.id.tvDetailTitle);
         tvOverview = findViewById(R.id.tvDetailOverview);
         rvCast = findViewById(R.id.rvCast);
-
-        // Vinculamos el reproductor
         youTubePlayerView = findViewById(R.id.youtube_player_view);
-        // Esto inicializa el video automáticamente, por eso no debemos usar .initialize() abajo
+
         getLifecycle().addObserver(youTubePlayerView);
 
+        // --- RECIBIR DATOS DEL INTENT (Variables Globales del método) ---
         String title = getIntent().getStringExtra("title");
         String overview = getIntent().getStringExtra("overview");
         String posterPath = getIntent().getStringExtra("poster");
@@ -72,6 +78,38 @@ public class MovieDetailActivity extends AppCompatActivity {
             cargarReparto(movieId);
             obtenerTrailer(movieId);
         }
+
+        // Firebase Setup
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
+            userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        }
+
+        // --- BOTÓN FAVORITOS ---
+        FloatingActionButton fabFavorite = findViewById(R.id.fabFavorite);
+        fabFavorite.setOnClickListener(v -> {
+            if (userId == null) {
+                Toast.makeText(this, "Debes iniciar sesión", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // CORRECCIÓN: No volvemos a declarar "int movieId" ni "String title".
+            // Usamos las variables que ya recibimos arriba del Intent.
+
+            // Creamos el objeto Movie usando el constructor nuevo
+            // NOTA: posterPath debe ser la URL completa para que se guarde bien
+            Movie favoriteMovie = new Movie(movieId, title, posterPath);
+
+            mDatabase.child("users").child(userId).child("favorites").child(String.valueOf(movieId))
+                    .setValue(favoriteMovie)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            Toast.makeText(this, "Añadido a favoritos", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, "Error al guardar", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        });
     }
 
     private void cargarReparto(int movieId) {
@@ -97,26 +135,20 @@ public class MovieDetailActivity extends AppCompatActivity {
 
     private void obtenerTrailer(int movieId) {
         TmdbApi api = RetrofitClient.getInstance().getApi();
-
         api.getMovieVideos(movieId, "f1b9e88067a26e85e746a2cd968ecb97").enqueue(new Callback<VideoResponse>() {
             @Override
             public void onResponse(Call<VideoResponse> call, Response<VideoResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<Video> videos = response.body().getResults();
-
-                    // Buscamos el primer video que sea de YouTube y tipo Trailer
                     for (Video v : videos) {
                         if (v.getSite().equals("YouTube") && v.getType().equals("Trailer")) {
                             cargarVideoEnApp(v.getKey());
-                            return; // Encontramos uno, cargamos y salimos
+                            return;
                         }
                     }
-
-                    // Si el bucle termina y no encontró nada, ocultamos el reproductor
                     youTubePlayerView.setVisibility(View.GONE);
                 }
             }
-
             @Override
             public void onFailure(Call<VideoResponse> call, Throwable t) {
                 youTubePlayerView.setVisibility(View.GONE);
@@ -126,13 +158,9 @@ public class MovieDetailActivity extends AppCompatActivity {
 
     private void cargarVideoEnApp(String videoKey) {
         youTubePlayerView.setVisibility(View.VISIBLE);
-
-        // Usamos addYouTubePlayerListener porque ya tenemos addObserver en onCreate
-        // Usar .initialize() aquí causaría un error de "doble inicialización"
         youTubePlayerView.addYouTubePlayerListener(new AbstractYouTubePlayerListener() {
             @Override
             public void onReady(@NonNull YouTubePlayer youTubePlayer) {
-                // CueVideo carga el video pero no lo reproduce automáticamente (ahorra datos)
                 youTubePlayer.cueVideo(videoKey, 0);
             }
         });

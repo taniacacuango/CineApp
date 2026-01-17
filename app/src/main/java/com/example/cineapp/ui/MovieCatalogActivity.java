@@ -6,8 +6,10 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,8 +21,13 @@ import com.example.cineapp.network.RetrofitClient;
 import com.example.cineapp.network.TmdbApi;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.android.material.bottomnavigation.BottomNavigationView; // <--- FALTABA ESTO
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference; // FALTABA ESTO
+import com.google.firebase.database.FirebaseDatabase; // FALTABA ESTO
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,16 +42,25 @@ public class MovieCatalogActivity extends AppCompatActivity {
     private List<Movie> movieLines = new ArrayList<>();
     private final String API_KEY = "f1b9e88067a26e85e746a2cd968ecb97";
 
+    // Declaramos la referencia a la base de datos
+    private DatabaseReference mDatabase;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_movie_catalog);
 
-        // 1. Configurar RecyclerView
+        // Inicializar Firebase Database
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+
+        // 1. Configurar Toolbar
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        // 2. Configurar RecyclerView
         recyclerView = findViewById(R.id.rvMovies);
         recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
 
-        // 2. Cargar datos iniciales
         cargarPeliculas();
 
         // 3. Configurar Buscador
@@ -55,76 +71,65 @@ public class MovieCatalogActivity extends AppCompatActivity {
                 buscarPeliculas(query);
                 return true;
             }
-
             @Override
             public boolean onQueryTextChange(String newText) {
-                if (newText.isEmpty()) {
-                    cargarPeliculas();
-                }
+                if (newText.isEmpty()) cargarPeliculas();
                 return false;
             }
         });
 
-        // 4. Configurar Menú Inferior (ESTO ESTABA FUERA Y DABA ERROR)
+        // 4. Configurar BottomNavigation
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
-
             if (id == R.id.nav_movies) {
                 cargarPeliculas();
             } else if (id == R.id.nav_favorites) {
-                Toast.makeText(this, "Próximamente: Favoritos", Toast.LENGTH_SHORT).show();
+                cargarFavoritosDesdeFirebase();
             } else if (id == R.id.nav_logout) {
-                FirebaseAuth.getInstance().signOut();
-                Intent intent = new Intent(MovieCatalogActivity.this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
+                cerrarSesion();
             }
             return true;
         });
-        // 1. Referenciar el NavigationView (el menú lateral)
-        NavigationView navigationView = findViewById(R.id.nav_view);
 
-// 2. Obtener la vista del Header (el archivo que acabamos de crear)
-        View headerView = navigationView.getHeaderView(0);
-        TextView tvUserEmail = headerView.findViewById(R.id.tvUserEmail);
-
-// 3. Obtener el usuario actual de Firebase
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-
-        if (user != null) {
-            // Ponemos el correo del usuario real en el texto
-            tvUserEmail.setText(user.getEmail());
-        }
-        // Configurar el botón de abrir menú (Toolbar)
-        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
+        // 5. Configurar Drawer
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.addDrawerListener(toggle);
         toggle.syncState();
+
+        View headerView = navigationView.getHeaderView(0);
+        TextView tvUserEmail = headerView.findViewById(R.id.tvUserEmail);
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null) {
+            tvUserEmail.setText(user.getEmail());
+        }
+    }
+
+    private void cerrarSesion() {
+        FirebaseAuth.getInstance().signOut();
+        Intent intent = new Intent(MovieCatalogActivity.this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void cargarPeliculas() {
         TmdbApi api = RetrofitClient.getInstance().getApi();
         Call<MovieResponse> call = api.getPopularMovies(API_KEY, "es-ES");
-
         call.enqueue(new Callback<MovieResponse>() {
             @Override
             public void onResponse(Call<MovieResponse> call, Response<MovieResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     movieLines = response.body().getMovies();
                     configurarAdapter(movieLines);
-                } else {
-                    Toast.makeText(MovieCatalogActivity.this, "Error en la respuesta", Toast.LENGTH_SHORT).show();
                 }
             }
             @Override
             public void onFailure(Call<MovieResponse> call, Throwable t) {
-                Toast.makeText(MovieCatalogActivity.this, "Error de conexión", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MovieCatalogActivity.this, "Error conexión", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -140,13 +145,15 @@ public class MovieCatalogActivity extends AppCompatActivity {
                 }
             }
             @Override
-            public void onFailure(Call<MovieResponse> call, Throwable t) {
-                Toast.makeText(MovieCatalogActivity.this, "Error al buscar", Toast.LENGTH_SHORT).show();
-            }
+            public void onFailure(Call<MovieResponse> call, Throwable t) {}
         });
     }
 
-    // Método auxiliar para no repetir código del adapter
+    private void configuringAdapter(List<Movie> movies) { // (Esto es helper para configurarAdapter)
+        configurarAdapter(movies);
+    }
+
+    // Método unificado para configurar el adaptador y el clic
     private void configurarAdapter(List<Movie> movies) {
         adapter = new MovieAdapter(movies, movie -> {
             Intent intent = new Intent(MovieCatalogActivity.this, MovieDetailActivity.class);
@@ -157,5 +164,31 @@ public class MovieCatalogActivity extends AppCompatActivity {
             startActivity(intent);
         });
         recyclerView.setAdapter(adapter);
+    }
+
+    private void cargarFavoritosDesdeFirebase() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) return;
+
+        String uid = currentUser.getUid();
+        mDatabase.child("users").child(uid).child("favorites")
+                .addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        List<Movie> favList = new ArrayList<>();
+                        for (DataSnapshot data : snapshot.getChildren()) {
+                            Movie m = data.getValue(Movie.class);
+                            favList.add(m);
+                        }
+                        // Reutilizamos el método para mostrar la lista
+                        configurarAdapter(favList);
+                        Toast.makeText(MovieCatalogActivity.this, "Favoritos cargados", Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Toast.makeText(MovieCatalogActivity.this, "Error al cargar favoritos", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 }
