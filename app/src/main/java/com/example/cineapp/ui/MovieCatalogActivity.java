@@ -20,6 +20,7 @@ import com.example.cineapp.models.MovieResponse;
 import com.example.cineapp.network.RetrofitClient;
 import com.example.cineapp.network.TmdbApi;
 import com.google.android.material.navigation.NavigationView;
+import com.example.cineapp.BuildConfig;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseUser;
@@ -40,7 +41,8 @@ public class MovieCatalogActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private MovieAdapter adapter;
     private List<Movie> movieLines = new ArrayList<>();
-    private final String API_KEY = "f1b9e88067a26e85e746a2cd968ecb97";
+    // BuildConfig se genera automáticamente al compilar
+    private final String API_KEY = BuildConfig.TMDB_API_KEY;
 
     // Declaramos la referencia a la base de datos
     private DatabaseReference mDatabase;
@@ -68,7 +70,17 @@ public class MovieCatalogActivity extends AppCompatActivity {
         searchView.setOnQueryTextListener(new androidx.appcompat.widget.SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                buscarPeliculas(query);
+                // 1. Sanitización básica: Quitar espacios al inicio/final
+                String cleanQuery = query.trim();
+
+                // 2. Validación de seguridad OWASP
+                // Evitamos búsquedas vacías o caracteres muy extraños que podrían intentar inyección
+                if (!cleanQuery.isEmpty() && cleanQuery.matches("[a-zA-Z0-9 ñÑáéíóúÁÉÍÓÚ]+")) {
+                    buscarPeliculas(cleanQuery);
+                } else {
+                    // Alerta al usuario (Feedback)
+                    Toast.makeText(MovieCatalogActivity.this, "Por favor, busca un título válido (solo letras y números)", Toast.LENGTH_SHORT).show();
+                }
                 return true;
             }
             @Override
@@ -87,7 +99,7 @@ public class MovieCatalogActivity extends AppCompatActivity {
             } else if (id == R.id.nav_favorites) {
                 cargarFavoritosDesdeFirebase();
             } else if (id == R.id.nav_logout) {
-                cerrarSesion();
+                mostrarDialogoCierreSesion();
             }
             return true;
         });
@@ -106,8 +118,36 @@ public class MovieCatalogActivity extends AppCompatActivity {
         if (user != null) {
             tvUserEmail.setText(user.getEmail());
         }
-    }
+        // 1. Verificar versión de Android (Solo necesario en Android 13+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
 
+                // 2. Pedir el permiso
+                androidx.core.app.ActivityCompat.requestPermissions(this,
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 101);
+            }
+        }
+    }
+    private void mostrarDialogoCierreSesion() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Cerrar Sesión")
+                .setMessage("¿Estás seguro de que quieres salir de CineApp?")
+                .setPositiveButton("Sí, salir", (dialog, which) -> {
+                    // Acción confirmada: Cerramos sesión
+                    FirebaseAuth.getInstance().signOut();
+                    Intent intent = new Intent(MovieCatalogActivity.this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                })
+                .setNegativeButton("Cancelar", (dialog, which) -> {
+                    // Acción cancelada: No hacemos nada, solo se cierra el diálogo
+                    dialog.dismiss();
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert) // Icono de alerta del sistema
+                .show();
+    }
     private void cerrarSesion() {
         FirebaseAuth.getInstance().signOut();
         Intent intent = new Intent(MovieCatalogActivity.this, MainActivity.class);
