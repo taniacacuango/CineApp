@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "511301789432",
+    "project_id": "cineapp-5ae71",
+    "storage_bucket": "cineapp-5ae71.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:511301789432:android:12bc5c1879d476bda53d0d",
+        "android_client_info": {
+          "package_name": "com.example.cineapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "511301789432-to1h4si6nmoin5s6m4jd7b9fhtoe9ujn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2Bvk3WomDIMHLbqY8-gAHq6pAZPPMLYA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "511301789432-to1h4si6nmoin5s6m4jd7b9fhtoe9ujn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

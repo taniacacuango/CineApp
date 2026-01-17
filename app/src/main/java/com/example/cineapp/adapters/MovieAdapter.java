@@ -13,11 +13,15 @@ import com.example.cineapp.models.Movie;
 import java.util.List;
 
 public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHolder> {
-
+    public interface OnMovieClickListener {
+        void onMovieClick(Movie movie);
+    }
     private List<Movie> movieList;
+    private OnMovieClickListener listener;
 
-    public MovieAdapter(List<Movie> movieList) {
+    public MovieAdapter(List<Movie> movieList, OnMovieClickListener listener) {
         this.movieList = movieList;
+        this.listener = listener;
     }
 
     @NonNull
@@ -36,6 +40,10 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
         Glide.with(holder.itemView.getContext())
                 .load(movie.getFullPosterPath())
                 .into(holder.ivPoster);
+        // EVENTO DE CLIC
+        holder.itemView.setOnClickListener(v -> {
+            listener.onMovieClick(movie);
+        });
     }
 
     @Override

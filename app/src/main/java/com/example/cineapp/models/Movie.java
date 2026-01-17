@@ -3,7 +3,6 @@ package com.example.cineapp.models;
 import com.google.gson.annotations.SerializedName;
 
 public class Movie {
-    // TMDB nos envía el ID, el título y la ruta de la imagen
     @SerializedName("id")
     private int id;
 
@@ -13,11 +12,27 @@ public class Movie {
     @SerializedName("poster_path")
     private String posterPath;
 
-    // Métodos para obtener los datos (Getters)
-    public String getTitle() { return title; }
+    @SerializedName("overview")
+    private String overview;
+
+    // --- Getters ---
+
+    public int getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getOverview() {
+        return overview;
+    }
 
     public String getFullPosterPath() {
-        // Las imágenes de TMDB necesitan esta URL base
-        return "https://image.tmdb.org/t/p/w500" + posterPath;
+        if (posterPath != null && !posterPath.isEmpty()) {
+            return "https://image.tmdb.org/t/p/w500" + posterPath;
+        }
+        return null;
     }
 }
