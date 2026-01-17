@@ -43,9 +43,11 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
     // --- LIBRERÍA PARA IMÁGENES ---
-    implementation("github.com.bumptech.glide:glide:4.15.1")
-    annotationProcessor("github.com.bumptech.glide:compiler:4.15.1")
+    // Librería principal de Glide
+    implementation 'com.github.bumptech.glide:glide:4.15.1'
 
+    // Procesador de anotaciones para Java (aquí es donde estaba el error)
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
     // --- LIBRERÍAS PARA FIREBASE (2FA) ---
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-auth")
